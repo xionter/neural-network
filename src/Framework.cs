@@ -82,10 +82,7 @@ public unsafe class Mat
 }
 public class Func
 {
-    public static float RandF()
-    {
-        var rnd = new Random();
-        return rnd.NextSingle();
-    }
+    private static Random rnd = new Random(Environment.TickCount);
+    public static float RandF() => rnd.NextSingle();
     public static float Sigmoidf(float x) =>  1.0f / (MathF.Exp(-x) + 1.0f);
 }
