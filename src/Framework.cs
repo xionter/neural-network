@@ -10,6 +10,7 @@ public unsafe class Mat
     {
         Rows = rows; Cols = cols; Elements = new float[Rows * Cols];
     }
+
     public Mat(int rows, int cols, float[] elements)
     {
         Rows = rows; Cols = cols; Elements = elements;

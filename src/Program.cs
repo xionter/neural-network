@@ -156,7 +156,6 @@ class Program
         }
         var ti = new Mat(numRows, 2, inp);
         var to = new Mat(numRows, 1, outp);
-        
         var m = Model.InitModelXor();
         var g = Model.InitModelXor();
 
