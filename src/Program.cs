@@ -11,7 +11,10 @@ class Program
 
     public class Layer
     {
-        public Mat a, b, w;
+        public Mat a{get;set;}
+        public Mat b{get;set;}
+        public Mat w{get;set;} 
+
         public Layer(Mat b, Mat w)
         {
             this.b = b; this.w = w;
@@ -21,18 +24,18 @@ class Program
 
     public class Model
     {
-        public Mat input;
-        public Layer[] Arch;
+        public Mat Input{get;set;}
+        public Layer[] Arch{get;set;}
 
-        public Model(Mat input, int n, Layer[] layers)
+        public Model(Mat Input, int n, Layer[] layers)
         {
-            this.input = input;
+            this.Input = Input;
             Arch = layers;
         }
 
         public static Model InitModelXor()
         {
-            Mat a0 = new Mat(1,2); //input
+            Mat a0 = new Mat(1,2); //Input
 
             Mat w1 = new Mat(2,2);
             Mat b1 = new Mat(1,2);
@@ -52,9 +55,9 @@ class Program
 
     public static float ModelCost(Model m, Mat ti, Mat to)
     {
-        if(ti.Rows != to.Rows) throw new InvalidOperationException("input and output rows dont match");
+        if(ti.Rows != to.Rows) throw new InvalidOperationException("Input and output rows dont match");
         if(m.Arch[^1].a.Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
-        if(m.input.Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+        if(m.Input.Cols != ti.Cols) throw new InvalidOperationException("model Input cols and data Input cols dont match");
 
         float c = 0.0f;
         int n = to.Rows;
@@ -62,7 +65,7 @@ class Program
         {
             var x = ti.GetRow(i);
             var y = to.GetRow(i);
-            m.input = x;
+            m.Input = x;
             ForwardModel(m);
             for(int j = 0; j < to.Cols; ++j)
             {
@@ -75,7 +78,7 @@ class Program
 
     public static void ForwardModel(Model m)
     {
-        Mat.Mult(m.Arch[0].a, m.input, m.Arch[0].w);
+        Mat.Mult(m.Arch[0].a, m.Input, m.Arch[0].w);
         Mat.Add(m.Arch[0].a, m.Arch[0].b);
         Mat.Sigmoid(m.Arch[0].a);
 
@@ -169,8 +172,8 @@ class Program
         {
             for(int j = 0; j < 2; ++j)
             {
-                m.input[0,0] = i;
-                m.input[0,1] = j;
+                m.Input[0,0] = i;
+                m.Input[0,1] = j;
                 ForwardModel(m);
                 Console.WriteLine($"{i} ^ {j} = {m.Arch[^1].a[0,0]}");
             }
