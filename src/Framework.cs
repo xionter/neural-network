@@ -1,6 +1,6 @@
 namespace NN;
 
-public unsafe class Mat
+public class Mat
 {
     public int Rows{get;}
     public int Cols{get;}
