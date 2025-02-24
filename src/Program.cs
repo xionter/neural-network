@@ -8,124 +8,134 @@ class Program
         0, 1, 1,
         1, 1, 0,
     }; 
-    public class Xor
+
+    public class Layer
     {
-        public Mat a0;
-        public Mat w1,b1,a1;
-        public Mat w2,b2,a2;
-
-        public Xor()
+        public Mat a, b, w;
+        public Layer(Mat b, Mat w)
         {
-            a0 = new Mat(1,2);
-
-            w1 = new Mat(2,2);
-            b1 = new Mat(1,2);
-            a1 = new Mat(1,2);
-            a2 = new Mat(1,1);
-            w2 = new Mat(2,1);
-            b2 = new Mat(1,1);
-
-            w2.Rand(-0.1f, 0.1f); b2.Rand(-0.1f, 0.1f);
-            w1.Rand(-0.1f, 0.1f); b1.Rand(-0.1f, 0.1f);
+            this.b = b; this.w = w;
+            this.a = new Mat(b.Rows, b.Cols);
         }
     }
 
-    public static float cost(Xor m, Mat ti, Mat to)
+    public class Model
     {
+        public Mat input;
+        public Layer[] Arch;
+
+        public Model(Mat input, int n, Layer[] layers)
+        {
+            this.input = input;
+            Arch = layers;
+        }
+
+        public static Model InitModelXor()
+        {
+            Mat a0 = new Mat(1,2); //input
+
+            Mat w1 = new Mat(2,2);
+            Mat b1 = new Mat(1,2);
+            Mat a1 = new Mat(1,2);
+
+            Mat w2 = new Mat(2,1);
+            Mat a2 = new Mat(1,1);
+            Mat b2 = new Mat(1,1);
+
+            w1.Rand(-0.1f, 0.1f); b1.Rand(-0.1f, 0.1f);
+            w2.Rand(-0.1f, 0.1f); b2.Rand(-0.1f, 0.1f);
+            var l1 = new Layer(b1, w1);
+            var l2 = new Layer(b2, w2);
+            return new Model(a0, 2, new Layer[]{l1, l2});
+        }
+    }
+
+    public static float ModelCost(Model m, Mat ti, Mat to)
+    {
+        if(ti.Rows != to.Rows) throw new InvalidOperationException("input and output rows dont match");
+        if(m.Arch[^1].a.Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
+        if(m.input.Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+
         float c = 0.0f;
         int n = to.Rows;
         for(int i = 0; i < n; ++i)
         {
             var x = ti.GetRow(i);
             var y = to.GetRow(i);
-            m.a0 = x;
-            ForwardXor(m);
-            for(int j = 0; j < m.a2.Cols; ++j)
+            m.input = x;
+            ForwardModel(m);
+            for(int j = 0; j < to.Cols; ++j)
             {
-                float d = m.a2[0,j] - y[0,j];
+                float d = m.Arch[^1].a[0,j] - y[0,j];
                 c += d*d;
             }
         }
         return c;
     }
 
-    public static void ForwardXor(Xor m)
+    public static void ForwardModel(Model m)
     {
-        Mat.Mult(m.a1, m.a0, m.w1);
-        Mat.Add(m.a1, m.b1);
-        Mat.Sigmoid(m.a1);
+        Mat.Mult(m.Arch[0].a, m.input, m.Arch[0].w);
+        Mat.Add(m.Arch[0].a, m.Arch[0].b);
+        Mat.Sigmoid(m.Arch[0].a);
 
-        Mat.Mult(m.a2, m.a1, m.w2);
-        Mat.Add(m.a2, m.b2);
-        Mat.Sigmoid(m.a2);
+        for(int i = 1; i < m.Arch.Length; ++i)
+        {
+            Mat.Mult(m.Arch[i].a, m.Arch[i-1].a, m.Arch[i].w);
+            Mat.Add(m.Arch[i].a, m.Arch[i].b);
+            Mat.Sigmoid(m.Arch[i].a);
+        }
     }
-    public static void FiniteDiff(Xor m, Xor g, float eps, Mat ti, Mat to)
+
+    public static void FiniteDiff(Model m, Model g, float eps, Mat ti, Mat to)
     {
         float temp;
 
-        float c = cost(m, ti, to);
-        for(var i = 0; i < m.w1.Rows; ++i)
+        float c = ModelCost(m, ti, to);
+        for(int i = 0; i < m.Arch.Length; ++i)
         {
-            for(var j = 0; j < m.w1.Cols; ++j)
+            for(int j = 0; j < m.Arch[i].w.Rows; ++j)
             {
-                temp = m.w1[i,j];
-                m.w1[i,j] += eps;
-                g.w1[i,j] = (cost(m,ti,to) - c) / eps;
-                m.w1[i,j] = temp;
+                for(int k = 0; k < m.Arch[i].w.Cols; ++k)
+                {
+                    temp = m.Arch[i].w[j, k];
+                    m.Arch[i].w[j, k] += eps;
+                    g.Arch[i].w[j, k] = (ModelCost(m,ti,to) - c) / eps;
+                    m.Arch[i].w[j, k] = temp;
+                }
             }
-        }
-
-        for(var i = 0; i < m.b1.Rows; ++i)
-        {
-            for(var j = 0; j < m.b1.Cols; ++j)
+            for(int j = 0; j < m.Arch[i].b.Rows; ++j)
             {
-                temp = m.b1[i,j];
-                m.b1[i,j] += eps;
-                g.b1[i,j] = (cost(m,ti,to) - c) / eps;
-                m.b1[i,j] = temp;
-            }
-        }
-        for(var i = 0; i < m.w2.Rows; ++i)
-        {
-            for(var j = 0; j < m.w2.Cols; ++j)
-            {
-                temp = m.w2[i,j];
-                m.w2[i,j] += eps;
-                g.w2[i,j] = (cost(m,ti,to) - c) / eps;
-                m.w2[i,j] = temp;
-            }
-        }
-
-        for(var i = 0; i < m.b2.Rows; ++i)
-        {
-            for(var j = 0; j < m.b2.Cols; ++j)
-            {
-                temp = m.b2[i,j];
-                m.b2[i,j] += eps;
-                g.b2[i,j] = (cost(m,ti,to) - c) / eps;
-                m.b2[i,j] = temp;
+                for(int k = 0; k < m.Arch[i].b.Cols; ++k)
+                {
+                    temp = m.Arch[i].b[j, k];
+                    m.Arch[i].b[j, k] += eps;
+                    g.Arch[i].b[j, k] = (ModelCost(m,ti,to) - c) / eps;
+                    m.Arch[i].b[j, k] = temp;
+                }
             }
         }
     }
 
-    public static void Learn(Xor m, Xor g, float rate)
+    public static void Learn(Model m, Model g, float rate)
     {
-        for(var i = 0; i < m.w1.Rows; ++i)
-            for(var j = 0; j < m.w1.Cols; ++j)
-                m.w1[i,j] -= g.w1[i,j] * rate;
-
-        for(var i = 0; i < m.b1.Rows; ++i)
-            for(var j = 0; j < m.b1.Cols; ++j)
-                m.b1[i,j] -= g.b1[i,j] * rate;
-
-        for(var i = 0; i < m.w2.Rows; ++i)
-            for(var j = 0; j < m.w2.Cols; ++j)
-                m.w2[i,j] -= g.w2[i,j] * rate;
-
-        for(var i = 0; i < m.b2.Rows; ++i)
-            for(var j = 0; j < m.b2.Cols; ++j)
-                m.b2[i,j] -= g.b2[i,j] * rate;
-
+        for(int i = 0; i < m.Arch.Length; ++i)
+        {
+            for(int j = 0; j < m.Arch[i].w.Rows; ++j)
+            {
+                for(int k = 0; k < m.Arch[i].w.Cols; ++k)
+                {
+                    m.Arch[i].w[j, k] -= g.Arch[i].w[j, k] * rate;
+                }
+            }
+            for(int j = 0; j < m.Arch[i].b.Rows; ++j)
+            {
+                for(int k = 0; k < m.Arch[i].b.Cols; ++k)
+                {
+                    m.Arch[i].b[j, k] -= g.Arch[i].b[j, k] * rate;
+                }
+            }
+        }
     }
     public static void Main()
     {
@@ -144,8 +154,8 @@ class Program
         var ti = new Mat(numRows, 2, inp);
         var to = new Mat(numRows, 1, outp);
         
-        var m = new Xor();
-        var g = new Xor();
+        var m = Model.InitModelXor();
+        var g = Model.InitModelXor();
 
         float eps = 1e-2f;
         float rate = 0.5f;
@@ -159,10 +169,10 @@ class Program
         {
             for(int j = 0; j < 2; ++j)
             {
-                m.a0[0,0] = i;
-                m.a0[0,1] = j;
-                ForwardXor(m);
-                Console.WriteLine($"{i} ^ {j} = {m.a2[0,0]}");
+                m.input[0,0] = i;
+                m.input[0,1] = j;
+                ForwardModel(m);
+                Console.WriteLine($"{i} ^ {j} = {m.Arch[^1].a[0,0]}");
             }
         }
     }
