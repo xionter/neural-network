@@ -13,8 +13,8 @@ class Program
     {
         var tdMat = new Mat(4, 3, td);
 
-        var ti = tdMat.GetSubmatrix(0, 0, 3, 1);
-        var to = tdMat.GetSubmatrix(0, 2, 3, 2);
+        var ti = tdMat.GetSubCols(0, 1);
+        var to = tdMat.GetCol(2);
 
         var m = Neural.Model.InitXor();
         var g = Neural.Model.InitXor();

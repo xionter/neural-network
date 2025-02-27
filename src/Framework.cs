@@ -169,6 +169,15 @@ public class Mat
         return new Mat(1, Cols, row);
     }
 
+    public Mat GetCol(int i)
+    {
+        var col = new float[Rows];
+        for(int j = 0; j < Rows; ++j)
+            col[j] = Elements[j * Cols + i];
+
+        return new Mat(Rows, 1, col);
+    }
+
     public static void Add(Mat a, Mat b)
     {
         if(a.Rows != b.Rows) throw new InvalidOperationException("Matrix rows dont match");
@@ -224,8 +233,8 @@ public class Mat
 
     public Mat GetSubmatrix(int startY, int startX, int endY, int endX)
     {
-        var rows = Math.Abs(endY - startY + 1);
-        var cols = Math.Abs(endX - startX + 1);
+        var rows = endY - startY + 1;
+        var cols = endX - startX + 1;
         var data = new float[rows * cols];
         int idx = 0;
         for(int i = startY; i <= endY; ++i)
@@ -233,6 +242,18 @@ public class Mat
                 data[idx++] = Elements[i * Cols + j];
 
         return new Mat(rows, cols, data);
+    }
+
+    public Mat GetSubCols(int start, int end)
+    {
+        int cols = end - start + 1;
+        var data = new float[Rows * cols];
+        int idx = 0;
+        for(int i = 0; i < Rows; ++i)
+            for(int j = start; j <= end; ++j)
+                data[idx++] = Elements[i * Cols + j];
+
+        return new Mat(Rows, cols, data);
     }
 }
 
