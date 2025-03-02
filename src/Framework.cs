@@ -1,6 +1,6 @@
-namespace NN;
+namespace Neural_Network;
 
-public class Neural
+public class NN
 {
     public class Layer
     {
@@ -52,6 +52,22 @@ public class Neural
             int[] arch = {2, 2, 1};
             return new Model(arch);
         }
+        public void Fill(float num)
+        {
+            for(int i = 0; i < Arch.Length; ++i)
+            {
+                for(int j = 0; j < Arch[i].a.Rows;++j)
+                    for(int k = 0; k < Arch[i].a.Cols;++k)
+                        Arch[i].a[j, k] = num;
+
+                for(int j = 0; j < Arch[i].w.Rows;++j)
+                    for(int k = 0; k < Arch[i].w.Cols;++k)
+                        Arch[i].w[j, k] = num;
+                for(int j = 0; j < Arch[i].b.Rows;++j)
+                    for(int k = 0; k < Arch[i].b.Cols;++k)
+                        Arch[i].b[j, k] = num;
+            }
+        }
     }
 
     public static float ModelCost(Model m, Mat ti, Mat to)
@@ -85,6 +101,60 @@ public class Neural
             Mat.Add(m.Arch[i].a, m.Arch[i].b);
             Mat.Sigmoid(m.Arch[i].a);
         }
+    }
+    
+    public static void BackProp(Model m, Model g, Mat ti, Mat to)
+    {
+        if(ti.Rows != to.Rows) throw new InvalidOperationException("data input and output rows dont match");
+        if(m.Arch[^1].a.Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
+        if(m.Arch[0].a.Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+
+        g.Fill(0.0f);
+
+        int n = ti.Rows;
+        for(int i = 0; i < n; ++i)
+        {
+            m.Arch[0].a = ti.GetRow(i);
+            ForwardModel(m);
+            for(int j = 0; j < g.Arch.Length;++j)
+                for(int k = 0; k < g.Arch[j].a.Cols;++k)
+                    g.Arch[j].a[0, k] = 0.0f;
+            
+            for(int j = 0; j < to.Cols; ++j)
+                g.Arch[^1].a[0, j] = m.Arch[^1].a[0, j] - to[0, j];
+
+            for(int l = m.Arch.Length - 1; l >= 1; --l)
+            {
+                for(int j = 0; j < m.Arch[l].a.Cols; ++j)
+                {
+                    float da = g.Arch[l].a[0, j];
+                    float a = m.Arch[l].a[0, j];
+                    g.Arch[l].b[0, j] += 2*da*a*(1-a);
+
+                    for(int k = 0; k < m.Arch[l-1].a.Cols;++k)
+                    {
+                        float w = m.Arch[l].w[k, j];
+                        float pa = m.Arch[l-1].a[0, k];
+                        g.Arch[l].w[k, j] += 2*da*a*(1-a)*pa;
+                        g.Arch[l-1].a[0, k] += 2*da*a*(1-a)*w;
+                    }
+                }
+            }
+        }
+        for(int i = 0; i < m.Arch.Length; ++i)
+            for(int j = 0; j < g.Arch[i].w.Rows;++j)
+                for(int k = 0; k < g.Arch[i].w.Cols;++k)
+                    g.Arch[i].w[j, k] /= n;
+
+        for(int i = 0; i < m.Arch.Length; ++i)
+            for(int j = 0; j < g.Arch[i].b.Rows;++j)
+                for(int k = 0; k < g.Arch[i].b.Cols;++k)
+                    g.Arch[i].b[j, k] /= n;
+
+        for(int i = 0; i < m.Arch.Length; ++i)
+            for(int j = 0; j < g.Arch[i].a.Rows;++j)
+                for(int k = 0; k < g.Arch[i].a.Cols;++k)
+                    g.Arch[i].a[j, k] /= n;
     }
 
     public static void FiniteDiff(Model m, Model g, float eps, Mat ti, Mat to)
