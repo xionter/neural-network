@@ -2,48 +2,34 @@ namespace Neural_Network;
 
 public class NN
 {
-    public class Layer
-    {
-        public Mat a{get;set;}
-        public Mat b{get;set;}
-        public Mat w{get;set;} 
-
-        public Layer(Mat b, Mat w)
-        {
-            this.b = b; this.w = w;
-            this.a = new Mat(b.Rows, b.Cols);
-        }
-
-        public Layer(int wRows, int wCols, int bRows, int bCols)
-        {
-            w = new Mat(wRows, wCols);
-            w.Rand(0.0f, 1.0f);
-            b = new Mat(bRows, bCols);
-            b.Rand(0.0f, 1.0f);
-            a = new Mat(bRows, bCols);
-        }
-
-    }
-
     public class Model
     {
-        public Layer[] Arch{get;set;}
+        public Mat[] As{get;set;}
+        public Mat[] Ws{get;set;}
+        public Mat[] Bs{get;set;}
+        public int Count{get;set;}
 
         public Model(int[] arch)
         {
-            int n = arch.Length;
-            Arch = new Layer[n];
-            int inputSize = arch[0];
+            Count = arch.Length;
+            As = new Mat[Count];
+            Ws = new Mat[Count - 1];
+            Bs = new Mat[Count - 1];
 
-            Arch[0] = new Layer(0, 0, 1, arch[0]);
-            for(int i = 1; i < n; ++i)
+            As[0] = new Mat(1, arch[0]);
+            for(int i = 1; i < Count; ++i)
             {
                 int wRows = arch[i - 1];
                 int wCols = arch[i];
                 int bRows = 1;
                 int bCols = arch[i];
 
-                Arch[i] = new Layer(wRows, wCols, bRows, bCols);
+                Ws[i - 1] = new Mat(wRows, wCols);
+                Bs[i - 1] = new Mat(bRows, bCols);
+                As[i] = new Mat(bRows, bCols);
+
+                Ws[i - 1].Rand(0.0f, 1.0f);
+                Bs[i - 1].Rand(0.0f, 1.0f);
             }
         }
 
@@ -52,29 +38,45 @@ public class NN
             int[] arch = {2, 2, 1};
             return new Model(arch);
         }
+
         public void Fill(float num)
         {
-            for(int i = 0; i < Arch.Length; ++i)
+            for(int i = 0; i < Count - 1; ++i)
             {
-                for(int j = 0; j < Arch[i].a.Rows;++j)
-                    for(int k = 0; k < Arch[i].a.Cols;++k)
-                        Arch[i].a[j, k] = num;
+                for(int j = 0; j < As[i].Rows;++j)
+                    for(int k = 0; k < As[i].Cols;++k)
+                        As[i][j, k] = num;
 
-                for(int j = 0; j < Arch[i].w.Rows;++j)
-                    for(int k = 0; k < Arch[i].w.Cols;++k)
-                        Arch[i].w[j, k] = num;
-                for(int j = 0; j < Arch[i].b.Rows;++j)
-                    for(int k = 0; k < Arch[i].b.Cols;++k)
-                        Arch[i].b[j, k] = num;
+                for(int j = 0; j < Ws[i].Rows;++j)
+                    for(int k = 0; k < Ws[i].Cols;++k)
+                        Ws[i][j, k] = num;
+
+                for(int j = 0; j < Bs[i].Rows;++j)
+                    for(int k = 0; k < Bs[i].Cols;++k)
+                        Bs[i][j, k] = num;
             }
+            for(int j = 0; j < As[^1].Rows;++j)
+                for(int k = 0; k < As[^1].Cols;++k)
+                    As[^1][j, k] = num;
+        }
+
+        public void Print()
+        {
+            for(int i = 0; i < Count - 1;++i)
+            {
+                As[i].Print($"a{i}");
+                Ws[i].Print($"w{i + 1}");
+                Bs[i].Print($"b{i + 1}");
+            }
+            As[^1].Print($"a{Count - 1}");
         }
     }
 
     public static float ModelCost(Model m, Mat ti, Mat to)
     {
         if(ti.Rows != to.Rows) throw new InvalidOperationException("data input and output rows dont match");
-        if(m.Arch[^1].a.Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
-        if(m.Arch[0].a.Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+        if(m.As[^1].Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
+        if(m.As[0].Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
 
         float c = 0.0f;
         int n = to.Rows;
@@ -82,11 +84,11 @@ public class NN
         {
             var x = ti.GetRow(i);
             var y = to.GetRow(i);
-            m.Arch[0].a = x;
+            m.As[0] = x;
             ForwardModel(m);
             for(int j = 0; j < to.Cols; ++j)
             {
-                float d = m.Arch[^1].a[0,j] - y[0,j];
+                float d = m.As[^1][0,j] - y[0,j];
                 c += d*d;
             }
         }
@@ -95,93 +97,96 @@ public class NN
 
     public static void ForwardModel(Model m)
     {
-        for(int i = 1; i < m.Arch.Length; ++i)
+        for(int i = 1; i < m.Count; ++i)
         {
-            Mat.Mult(m.Arch[i].a, m.Arch[i-1].a, m.Arch[i].w);
-            Mat.Add(m.Arch[i].a, m.Arch[i].b);
-            Mat.Sigmoid(m.Arch[i].a);
+            Mat.Mult(m.As[i], m.As[i-1], m.Ws[i - 1]);
+            Mat.Add(m.As[i], m.Bs[i - 1]);
+            Mat.Sigmoid(m.As[i]);
         }
     }
     
     public static void BackProp(Model m, Model g, Mat ti, Mat to)
     {
         if(ti.Rows != to.Rows) throw new InvalidOperationException("data input and output rows dont match");
-        if(m.Arch[^1].a.Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
-        if(m.Arch[0].a.Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+        if(m.As[^1].Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
+        if(m.As[0].Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
 
         g.Fill(0.0f);
 
         int n = ti.Rows;
         for(int i = 0; i < n; ++i)
         {
-            m.Arch[0].a = ti.GetRow(i);
+            m.As[0] = ti.GetRow(i);
             ForwardModel(m);
-            for(int j = 0; j < g.Arch.Length;++j)
-                for(int k = 0; k < g.Arch[j].a.Cols;++k)
-                    g.Arch[j].a[0, k] = 0.0f;
+
+            for(int j = 0; j < g.Count;++j)
+                for(int k = 0; k < g.As[j].Cols;++k)
+                    g.As[j][0, k] = 0.0f;
             
             for(int j = 0; j < to.Cols; ++j)
-                g.Arch[^1].a[0, j] = m.Arch[^1].a[0, j] - to[0, j];
+                g.As[^1][0, j] = m.As[^1][0, j] - to[0, j];          
 
-            for(int l = m.Arch.Length - 1; l >= 1; --l)
+            for(int l = m.Count - 1; l > 0; --l)
             {
-                for(int j = 0; j < m.Arch[l].a.Cols; ++j)
+                for(int j = 0; j < m.As[l].Cols; ++j)
                 {
-                    float da = g.Arch[l].a[0, j];
-                    float a = m.Arch[l].a[0, j];
-                    g.Arch[l].b[0, j] += 2*da*a*(1-a);
+                    float da = g.As[l][0, j];
+                    float a = m.As[l][0, j];
+                    float sigmoid_grad = a * (1 - a);
+                    float delta = da * sigmoid_grad;
+                    g.Bs[l - 1][0, j] += delta;
 
-                    for(int k = 0; k < m.Arch[l-1].a.Cols;++k)
+                    for(int k = 0; k < m.As[l-1].Cols;++k)
                     {
-                        float w = m.Arch[l].w[k, j];
-                        float pa = m.Arch[l-1].a[0, k];
-                        g.Arch[l].w[k, j] += 2*da*a*(1-a)*pa;
-                        g.Arch[l-1].a[0, k] += 2*da*a*(1-a)*w;
+                        float w = m.Ws[l - 1][k, j];
+                        float pa = m.As[l-1][0, k];
+                        g.Ws[l - 1][k, j] += delta*pa;
+                        g.As[l - 1][0, k] += delta*w;
                     }
                 }
             }
         }
-        for(int i = 0; i < m.Arch.Length; ++i)
-            for(int j = 0; j < g.Arch[i].w.Rows;++j)
-                for(int k = 0; k < g.Arch[i].w.Cols;++k)
-                    g.Arch[i].w[j, k] /= n;
 
-        for(int i = 0; i < m.Arch.Length; ++i)
-            for(int j = 0; j < g.Arch[i].b.Rows;++j)
-                for(int k = 0; k < g.Arch[i].b.Cols;++k)
-                    g.Arch[i].b[j, k] /= n;
+        for(int i = 0; i < m.Count - 1; ++i)
+            for(int j = 0; j < g.Ws[i].Rows;++j)
+                for(int k = 0; k < g.Ws[i].Cols;++k)
+                    g.Ws[i][j, k] /= n;
 
-        for(int i = 0; i < m.Arch.Length; ++i)
-            for(int j = 0; j < g.Arch[i].a.Rows;++j)
-                for(int k = 0; k < g.Arch[i].a.Cols;++k)
-                    g.Arch[i].a[j, k] /= n;
+        for(int i = 0; i < m.Count - 1; ++i)
+            for(int j = 0; j < g.Bs[i].Rows;++j)
+                for(int k = 0; k < g.Bs[i].Cols;++k)
+                    g.Bs[i][j, k] /= n;
     }
 
     public static void FiniteDiff(Model m, Model g, float eps, Mat ti, Mat to)
     {
+        if(ti.Rows != to.Rows) throw new InvalidOperationException("data input and output rows dont match");
+        if(m.As[^1].Cols != to.Cols) throw new InvalidOperationException("model output cols and data output cols dont match");
+        if(m.As[0].Cols != ti.Cols) throw new InvalidOperationException("model input cols and data input cols dont match");
+
         float temp;
 
         float c = ModelCost(m, ti, to);
-        for(int i = 0; i < m.Arch.Length; ++i)
+        for(int i = 0; i < m.Count - 1; ++i)
         {
-            for(int j = 0; j < m.Arch[i].w.Rows; ++j)
+            for(int j = 0; j < m.Ws[i].Rows; ++j)
             {
-                for(int k = 0; k < m.Arch[i].w.Cols; ++k)
+                for(int k = 0; k < m.Ws[i].Cols; ++k)
                 {
-                    temp = m.Arch[i].w[j, k];
-                    m.Arch[i].w[j, k] += eps;
-                    g.Arch[i].w[j, k] = (ModelCost(m,ti,to) - c) / eps;
-                    m.Arch[i].w[j, k] = temp;
+                    temp = m.Ws[i][j, k];
+                    m.Ws[i][j, k] += eps;
+                    g.Ws[i][j, k] = (ModelCost(m,ti,to) - c) / eps;
+                    m.Ws[i][j, k] = temp;
                 }
             }
-            for(int j = 0; j < m.Arch[i].b.Rows; ++j)
+            for(int j = 0; j < m.Bs[i].Rows; ++j)
             {
-                for(int k = 0; k < m.Arch[i].b.Cols; ++k)
+                for(int k = 0; k < m.Bs[i].Cols; ++k)
                 {
-                    temp = m.Arch[i].b[j, k];
-                    m.Arch[i].b[j, k] += eps;
-                    g.Arch[i].b[j, k] = (ModelCost(m,ti,to) - c) / eps;
-                    m.Arch[i].b[j, k] = temp;
+                    temp = m.Bs[i][j, k];
+                    m.Bs[i][j, k] += eps;
+                    g.Bs[i][j, k] = (ModelCost(m,ti,to) - c) / eps;
+                    m.Bs[i][j, k] = temp;
                 }
             }
         }
@@ -189,22 +194,18 @@ public class NN
 
     public static void Learn(Model m, Model g, float rate)
     {
-        for(int i = 0; i < m.Arch.Length; ++i)
+        for(int i = 0; i < m.Count - 1; ++i)
         {
-            for(int j = 0; j < m.Arch[i].w.Rows; ++j)
+            for(int j = 0; j < m.Ws[i].Rows; ++j)
             {
-                for(int k = 0; k < m.Arch[i].w.Cols; ++k)
+                for(int k = 0; k < m.Ws[i].Cols; ++k)
                 {
-                    m.Arch[i].w[j, k] -= g.Arch[i].w[j, k] * rate;
+                    m.Ws[i][j, k] -= g.Ws[i][j, k] * rate;
                 }
             }
-            for(int j = 0; j < m.Arch[i].b.Rows; ++j)
-            {
-                for(int k = 0; k < m.Arch[i].b.Cols; ++k)
-                {
-                    m.Arch[i].b[j, k] -= g.Arch[i].b[j, k] * rate;
-                }
-            }
+            for(int j = 0; j < m.Bs[i].Rows; ++j)
+                for(int k = 0; k < m.Bs[i].Cols; ++k)
+                    m.Bs[i][j, k] -= g.Bs[i][j, k] * rate;
         }
     }
 
@@ -263,19 +264,20 @@ public class Mat
         if(dst.Rows != a.Rows) throw new InvalidOperationException("Matrix sizes dont match");
         if(dst.Cols != b.Cols) throw new InvalidOperationException("Matrix sizes dont match");
 
-        for(int y = 0; y < a.Rows; ++y)
-            for(int x = 0; x < b.Cols;++x)
-                for(int k = 0; k < a.Cols; ++k)
-                    dst[y,x] = 0;
+        for(int y = 0; y < dst.Rows; ++y)
+            for(int x = 0; x < dst.Cols; ++x)
+                dst[y,x] = 0;
 
         for(int y = 0; y < a.Rows; ++y)
-            for(int x = 0; x < b.Cols;++x)
+            for(int x = 0; x < b.Cols; ++x)
                 for(int k = 0; k < a.Cols; ++k)
                     dst[y,x] += a[y,k] * b[k, x];
     }
 
-    public void Print()
+    public void Print(string name)
     {
+        Console.WriteLine($"{name} = ");
+        Console.WriteLine("[");
         for(int y = 0; y < Rows; ++y)
         {
             for(int x = 0; x < Cols; ++x)
@@ -284,7 +286,7 @@ public class Mat
             }
             Console.WriteLine();
         }
-
+        Console.WriteLine("]");
     }
 
     public void Rand(float low, float high)

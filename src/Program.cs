@@ -22,10 +22,10 @@ class Program
         float eps = 1e-2f;
         float rate = 1f;
         Console.WriteLine(NN.ModelCost(m, ti, to));
-        for(int i = 0; i < 50; ++i)
+        for(int i = 0; i < 100* 1000; ++i)
         {
-                //NN.FiniteDiff(m, g, eps, ti, to);
-            NN.BackProp(m, g, ti, to);
+            NN.FiniteDiff(m, g, eps, ti, to);
+//            NN.BackProp(m, g, ti, to);
             NN.Learn(m, g, rate);
             Console.WriteLine($"{i} {NN.ModelCost(m, ti, to)}");
         }
@@ -34,10 +34,10 @@ class Program
         {
             for(int j = 0; j < 2; ++j)
             {
-                m.Arch[0].a[0,0] = i;
-                m.Arch[0].a[0,1] = j;
+                m.As[0][0,0] = i;
+                m.As[0][0,1] = j;
                 NN.ForwardModel(m);
-                Console.WriteLine($"{i} ^ {j} = {m.Arch[^1].a[0,0]}");
+                Console.WriteLine($"{i} ^ {j} = {m.As[^1][0,0]}");
             }
         }
     }
