@@ -16,18 +16,14 @@ class Program
 
         var ti = tdMat.GetSubCols(0, 1);
         var to = tdMat.GetCol(2);
-
         var m = NN.Model.InitXor();
         var g = NN.Model.InitXor();
-        float eps = 1e-2f;
         float rate = 1f;
-        Console.WriteLine(NN.ModelCost(m, ti, to));
         for(int i = 0; i < 100* 1000; ++i)
         {
-            NN.FiniteDiff(m, g, eps, ti, to);
-//            NN.BackProp(m, g, ti, to);
+            NN.BackProp(m, g, ti, to);
             NN.Learn(m, g, rate);
-            Console.WriteLine($"{i} {NN.ModelCost(m, ti, to)}");
+            Console.WriteLine($"{i}: {NN.ModelCost(m, ti, to)}");
         }
 
         for(int i = 0; i < 2; ++i)

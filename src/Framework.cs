@@ -97,11 +97,11 @@ public class NN
 
     public static void ForwardModel(Model m)
     {
-        for(int i = 1; i < m.Count; ++i)
+        for(int i = 0; i < m.Count - 1; ++i)
         {
-            Mat.Mult(m.As[i], m.As[i-1], m.Ws[i - 1]);
-            Mat.Add(m.As[i], m.Bs[i - 1]);
-            Mat.Sigmoid(m.As[i]);
+            Mat.Mult(m.As[i+1], m.As[i], m.Ws[i]);
+            Mat.Add(m.As[i+1], m.Bs[i]);
+            Mat.Sigmoid(m.As[i+1]);
         }
     }
     
@@ -116,7 +116,9 @@ public class NN
         int n = ti.Rows;
         for(int i = 0; i < n; ++i)
         {
-            m.As[0] = ti.GetRow(i);
+            var x = ti.GetRow(i);
+            var y = to.GetRow(i);
+            m.As[0] = x;
             ForwardModel(m);
 
             for(int j = 0; j < g.Count;++j)
@@ -124,7 +126,7 @@ public class NN
                     g.As[j][0, k] = 0.0f;
             
             for(int j = 0; j < to.Cols; ++j)
-                g.As[^1][0, j] = m.As[^1][0, j] - to[0, j];          
+                g.As[^1][0, j] = m.As[^1][0, j] - y[0, j]; 
 
             for(int l = m.Count - 1; l > 0; --l)
             {
